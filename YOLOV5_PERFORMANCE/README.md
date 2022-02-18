@@ -1,5 +1,5 @@
 # YOLOV5s   
-4 Parallel Inference
+4 Parallel Inference   
 GTX 1050 4gb   
 i7 9750H   
 frametime paling parah ~0.050s   
