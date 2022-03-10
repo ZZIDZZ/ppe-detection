@@ -7,7 +7,7 @@ import argparse
 from matplotlib.pyplot import text
 import torch
 import torch.backends.cudnn as cudnn
-
+from tkinter import ttk
 from models.common import DetectMultiBackend
 from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadStreams, LoadImages
 from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
@@ -16,7 +16,7 @@ from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
 
 
-
+LARGEFONT =("Verdana", 35)
 def returnCameraIndexes():
     index = 0
     arr = []
@@ -31,41 +31,32 @@ def returnCameraIndexes():
     cv2.destroyAllWindows()
     return arr
 
-class App:
-    def __init__(self, window, window_title, video_source=1):
-        self.window = window
-        self.window.title(window_title)
-        self.video_source = video_source
-        self.ok=False
-        self.vid = VideoCapture(self.video_source)
-        self.canvas = tk.Canvas(self.window, width = self.vid.width, height = self.vid.height)
-        self.canvas.pack()
-        # Create a canvas that can fit the above video source size
-        # Button that lets the user take a snapshot
-        self.btn_snapshot=tk.Button(window, text="Snapshot", command=self.snapshot)
-        self.btn_snapshot.pack(side=tk.LEFT)
-
-        videoInputs = returnCameraIndexes()
-        self.btn_video = []
-        for _, val in enumerate(videoInputs):
-            self.btn_video.append(tk.Button(window, text=f"video({val})", command=lambda i=_:self.changeCamera(i)))
-            self.btn_video[_].pack( side = tk.LEFT )
-        #video control buttons
-
-        self.btn_start=tk.Button(window, text='START', command=self.open_camera)
-        self.btn_start.pack(side=tk.LEFT)
-
-        self.btn_stop=tk.Button(window, text='STOP', command=self.close_camera)
-        self.btn_stop.pack(side=tk.LEFT)
-
-        # quit button
-        self.btn_quit=tk.Button(window, text='QUIT', command=quit)
-        self.btn_quit.pack(side=tk.LEFT)
-        
-        # Inference button
-        self.btn_inference = tk.Button(window, text = 'Start Inference', command = self.inference)
-        # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay=10
+class App(tk.Tk):
+    def __init__(self,  video_source=1,master=None):
+        super().__init__(master)
+        container = tk.Frame(self) 
+        container.pack(side = "top", fill = "both", expand = True)
+  
+        container.grid_rowconfigure(0, weight = 1)
+        container.grid_columnconfigure(0, weight = 1)
+  
+        # initializing frames to an empty array
+        self.frames = {} 
+  
+        # iterating through a tuple consisting
+        # of the different page layouts
+        for F in (Menu, Inferencer):
+  
+            frame = F(container, self)
+  
+            # initializing frame of that object from
+            # Menu, page1, page2 respectively with
+            # for loop
+            self.frames[F] = frame
+  
+            frame.grid(row = 0, column = 0, sticky ="nsew")
+  
+        self.show_frame(Menu)
         self.update()
 
         self.window.mainloop()
@@ -108,8 +99,85 @@ class App:
     def inference(self):
         print("inferencing")
         cv2.destroyAllWindows()
+    def show_frame(self, cont):
+        frame = self.frames[cont]
+        frame.tkraise()
 
+class Menu(tk.Frame):
+    def __init__(self, controller, video_source = 1, master = None):
+        super().__init__(master)
+        label = ttk.Label(self, text ="Startpage", font = LARGEFONT)
+        self.video_source = video_source
+        self.ok=False
+        self.vid = VideoCapture(self.video_source)
+        self.canvas = tk.Canvas(self, width = self.vid.width, height = self.vid.height)
+        self.canvas.pack()
+        # Create a canvas that can fit the above video source size
+        # Button that lets the user take a snapshot
+        self.btn_snapshot=tk.Button(self, text="Snapshot", command=self.snapshot)
+        self.btn_snapshot.pack(side=tk.LEFT)
 
+        videoInputs = returnCameraIndexes()
+        self.buttons = []
+        for _, val in enumerate(videoInputs):
+            self.buttons.append(tk.Button(self, text=f"video({val})", command=lambda i=_:self.changeCamera(i)))
+            self.buttons[_].pack( side = tk.LEFT )
+        #video control buttons
+
+        self.btn_start=tk.Button(self, text='START', command=self.open_camera)
+        self.btn_start.pack(side=tk.LEFT)
+
+        self.btn_stop=tk.Button(self, text='STOP', command=self.close_camera)
+        self.btn_stop.pack(side=tk.LEFT)
+
+        # quit button
+        self.btn_quit=tk.Button(self, text='QUIT', command=quit)
+        self.btn_quit.pack(side=tk.LEFT)
+
+        self.btn_quit=tk.Button(self, text='LANJUT', command=lambda : controller.show_frame(Inferencer))
+        self.btn_quit.pack(side=tk.LEFT)
+        
+        # After it is called once, the update method will be automatically called every delay milliseconds
+        self.delay=10
+        self.update()
+
+        self.mainloop()
+
+    def snapshot(self):
+        # Get a frame from the video source
+        ret,frame=self.vid.get_frame()
+        if ret:
+            cv2.imwrite("frame-"+time.strftime("%d-%m-%Y-%H-%M-%S")+".jpg",cv2.cvtColor(frame,cv2.COLOR_RGB2BGR))
+
+    def open_camera(self):
+        self.ok = True
+        self.timer.start()
+        print("camera opened => Recording")
+
+    def close_camera(self):
+        self.ok = False
+        self.timer.stop()
+        print("camera closed => Not Recording")
+
+    def update(self):
+        # Get a frame from the video source
+        ret, frame = self.vid.get_frame()
+        if self.ok:
+            self.vid.out.write(cv2.cvtColor(frame,cv2.COLOR_RGB2BGR))
+
+        if ret:
+            self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
+        self.window.after(self.delay,self.update)
+
+    def changeCamera(self, source):
+        self.ok = False
+        cv2.destroyAllWindows()
+        self.video_source = source
+        self.vid.__del__()
+        self.vid = VideoCapture(source)
+        self.ok = True
+    
 
 class VideoCapture:
     def __init__(self, video_source=0):
@@ -309,6 +377,6 @@ class Inferencer:
 
 def main():
     # Create a window and pass it to the Application object
-    App(tk.Tk(),'INGPO TKINTERRR')
+    App(1)
 
 main()

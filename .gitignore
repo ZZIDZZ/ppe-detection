@@ -3,3 +3,5 @@ helmet/
 *.avi
 *.jpg
 *.png
+yolov5/runs/detect
+yolov5/runs/train
