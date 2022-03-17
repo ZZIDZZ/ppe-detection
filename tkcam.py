@@ -31,7 +31,7 @@ def returnCameraIndexes():
     return arr
 
 class App:
-    def __init__(self, window, window_title, video_source=1):
+    def __init__(self, window, window_title, video_source=0):
         self.window = window
         self.window.title(window_title)
         self.video_source = video_source
@@ -173,7 +173,7 @@ class CommandLineParser:
         # Only values is supporting for the tag --type. So nargs will be '1' to get
         parser.add_argument('--type', nargs=1, default=['avi'], type=str, help='Type of the video output: for now we have only AVI & MP4')
         # Only one values are going to accept for the tag --res. So nargs will be '1'
-        parser.add_argument('--res', nargs=1, default=['720p'], type=str, help='Resolution of the video output: for now we have 480p, 720p, 1080p & 4k')
+        parser.add_argument('--res', nargs=1, default=['1080p'], type=str, help='Resolution of the video output: for now we have 480p, 720p, 1080p & 4k')
         # Only one values are going to accept for the tag --name. So nargs will be '1'
         parser.add_argument('--name', nargs=1, default=['output'], type=str, help='Enter Output video title/name')
         # Parse the arguments and get all the values in the form of namespace.

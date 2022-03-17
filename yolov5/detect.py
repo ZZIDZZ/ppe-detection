@@ -28,12 +28,10 @@ import argparse
 import os
 import sys
 from pathlib import Path
-
+import time
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
-import time
-
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -99,6 +97,10 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
     half &= (pt or jit or onnx or engine) and device.type != 'cpu'  # FP16 supported on limited backends with CUDA
     if pt or jit:
         model.model.half() if half else model.model.float()
+    elif engine and model.trt_fp16_input != half:
+        LOGGER.info('model ' + (
+            'requires' if model.trt_fp16_input else 'incompatible with') + ' --half. Adjusting automatically.')
+        half = model.trt_fp16_input
 
     # Dataloader
     if webcam:
@@ -139,8 +141,10 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         # Second-stage classifier (optional)
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
-        # Process predictions
+        print("pred", type(pred))
         for i, det in enumerate(pred):  # per image
+            print(i)
+            print(det, type(det))  # per image
             seen += 1
             if webcam:  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count

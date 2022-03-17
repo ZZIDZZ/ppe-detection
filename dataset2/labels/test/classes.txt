@@ -1,0 +1,7 @@
+head_with_helmet
+person_without_vest
+person_with_vest
+head_without_helmet
+gloves
+boots
+mask

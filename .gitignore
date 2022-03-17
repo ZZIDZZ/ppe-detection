@@ -5,3 +5,7 @@ helmet/
 *.png
 yolov5/runs/detect
 yolov5/runs/train
+result_backup
+result-gen2
+dist
+dataset
