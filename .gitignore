@@ -9,3 +9,5 @@ result_backup
 result-gen2
 dist
 dataset
+build
+*.pt

@@ -33,8 +33,6 @@ def returnCameraIndexes():
 
 
 class Inferencer:
-
-
     def __init__(self, video_path, model_path, data_path, imgsz = (736,1280)):
         self.video_path = video_path
         self.model_path = model_path

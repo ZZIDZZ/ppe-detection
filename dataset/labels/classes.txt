@@ -1,7 +1,0 @@
-helmet
-person
-vest
-boots
-mask
-gloves
-glasses

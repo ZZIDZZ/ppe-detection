@@ -88,7 +88,6 @@ class App:
         ret, frame = self.vid.get_frame()
         if self.ok:
             self.vid.out.write(cv2.cvtColor(frame,cv2.COLOR_RGB2BGR))
-
         if ret:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)

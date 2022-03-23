@@ -1,5 +1,5 @@
 import tkinter as tk
-from cv2 import VideoCapture,destroyAllWindows, cvtColor, CAP_DSHOW, COLOR_RGB2BGR, VideoWriter, VideoWriter_fourcc, imwrite
+from cv2 import VideoCapture,destroyAllWindows, cvtColor, CAP_DSHOW, COLOR_RGB2BGR, VideoWriter, VideoWriter_fourcc
 import PIL.Image, PIL.ImageTk, PIL.ImageDraw
 from time import time
 import numpy as np
@@ -11,8 +11,7 @@ from utils.plots import Annotator, colors
 from utils.torch_utils import select_device
 from utils.augmentations import letterbox
 from sys import exit
-
-LARGEFONT = ("Verdana", 35)
+LARGEFONT =("Verdana", 35)
 
 VIDEO_PATH = 0
 
@@ -32,7 +31,6 @@ def returnCameraIndexes():
 
 class Menu(tk.Frame):
     def __init__(self, container):
-        # TODO Menu: Rapikan GUI,  Add text input for api send specification
         super().__init__(container)
         print("Menu initialized")
         self.container = container
@@ -42,24 +40,22 @@ class Menu(tk.Frame):
         self.vid = VideoCap()
         # self.frame = tk.Frame(container, width = self.vid.width, height = self.vid.height, bd=1)
         # self.frame.pack()
-
-        # Create a canvas that can fit the above video source size
         self.canvas = tk.Canvas(self.frame, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
+        # Create a canvas that can fit the above video source size
+        # Button that lets the user take a snapshot
 
-        # Video control buttons
         videoInputs = returnCameraIndexes()
-        # video input choice
         self.buttons = []
         for _, val in enumerate(videoInputs):
             self.buttons.append(tk.Button(self.frame, text=f"video({val})", command=lambda i=_:self.changeCamera(i)))
             self.buttons[_].pack( side = tk.LEFT )
+        #video control buttons
 
         # quit button
         self.btn_quit=tk.Button(self.frame, text='QUIT', command=exit)
         self.btn_quit.pack(side=tk.LEFT)
 
-        # Continue button
         self.btn_quit=tk.Button(self.frame, text='LANJUT', command=self.inference)
         self.btn_quit.pack(side=tk.LEFT)
         
@@ -82,7 +78,7 @@ class Menu(tk.Frame):
         self.frame.destroy()
         destroyAllWindows()
         self.vid.__del__()
-        self.container.switch_frame(InferenceView)
+        self.container.switch_frame(Inferencer)
         
     def changeCamera(self, source):
         global VIDEO_PATH
@@ -90,7 +86,7 @@ class Menu(tk.Frame):
         self.ok = False
         destroyAllWindows()
         self.vid.__del__()
-        self.vid = VideoCap()
+        self.vid = VideoCapture()
         self.ok = True
         self.canvas.pack()
 
@@ -98,12 +94,28 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self._frame = None
+        # self.inferencer = Inferencer(0, "best.pt", "ppe3.yaml")
+        # self.ok=False
+        # initializing frames to an empty array
+        # self.frames = {'Menu':Menu}
+        # # iterating through a tuple consisting
+        # # of the different page layouts
+        # for F in (Menu, Inferencer):
+  
+        #     frame = F(container, self)
+  
+        #     # initializing frame of that object from
+        #     # Menu, page1, page2 respectively with
+        #     # for loop
+        #     self.frames[F] = frame
+  
+        #     frame.grid(row = 0, column = 0, sticky ="nsew")
+  
         self.switch_frame(Menu)
-        try:
-            self.tk.call("source", "tk-theme/azure.tcl")
-            self.tk.call("set_theme", "light")
-        except:
-            pass
+
+    def show_frame(self):
+        frame = Menu(self,0)
+        frame.tkraise()
 
     def switch_frame(self, frame_class):
         new_frame = frame_class(self)
@@ -135,7 +147,6 @@ class VideoCap :
         STD_DIMENSIONS =  {
             '480p': (640, 480),
             '736p': (1280, 736),
-            '864p': (1536, 864),
             '1080p': (1920, 1080),
             '4k': (3840, 2160),
         }
@@ -171,40 +182,76 @@ class VideoCap :
 
 
 class InferenceView(tk.Frame):
-    global VIDEO_PATH
-    def __init__(self, container):
-        # also TODO InferenceView: rapikan GUI dan logger
+    def __init__(self, container, model_path="best.pt", data_path="ppe3.yaml", imgsz = (736,1280)):
+        global VIDEO_PATH
         super().__init__(container)
-        self.inferencer = Inferencer(0, "yolov5m.pt", "coco128.yaml")
-        self.prev_frame_time = 0
-        self.new_frame_time = 0
-        self.frame = tk.Frame(master=container)
-        self.frame.pack()
+        self.container = container
         self.ok=False
-        self.video_source = VIDEO_PATH
         self.vid = VideoCap()
-        # Create a canvas that can fit the above video source size
-        self.canvas = tk.Canvas(self.frame, width = self.vid.width, height = self.vid.height)
+        # self.frame = tk.Frame(container, width = self.vid.width, height = self.vid.height, bd=1)
+        # self.frame.pack()
+        self.canvas = tk.Canvas(container, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
-
-        # quit button
-        self.btn_quit=tk.Button(self.frame, text='QUIT', command=exit)
-        self.btn_quit.pack(side=tk.LEFT)
+        self.VIDEO_PATH = VIDEO_PATH
+        self.model_path = model_path
+        self.data_path  = data_path
+        self.imgsz = imgsz
+        self.conf_thres = 0.25
+        self.iou_thres = 0.45
+        self.max_det = 1000
+        self.line_thickness = 3
+        self.half = False
+        self.hide_conf = False
         
-        # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay=10
-        self.update()
+        # Open the video source
+        self.vid = VideoCapture(self.VIDEO_PATH)
+        if not self.vid.isOpened():
+            raise ValueError("Unable to open video source", self.VIDEO_PATH)
 
-        self.frame.mainloop()
+        # # Command Line Parser
+        # args=CommandLineParser().args
+
+        # # 1. Video Type
+        # VIDEO_TYPE = {
+        #     'avi': VideoWriter_fourcc(*'XVID'),
+        #     #'mp4': VideoWriter_fourcc(*'H264'),
+        #     'mp4': VideoWriter_fourcc(*'XVID'),
+        # }
+        # self.fourcc=VIDEO_TYPE['avi']
+
+        # # 2. Video Dimension
+        # STD_DIMENSIONS =  {
+        #     '480p': (640, 480),
+        #     '736p': (1280, 736),
+        #     '900p': (1600,900),
+        #     '1080p': (1920, 1080),
+        #     '4k': (3840, 2160),
+        # }
+        # res=STD_DIMENSIONS[args.res[0]]
+        # print(args.name,self.fourcc,res)
+        # self.out = VideoWriter(args.name[0]+'.'+args.type[0],self.fourcc,20,res)
+
+        # #set video sourec width and height
+        # self.vid.set(3,res[0])
+        # self.vid.set(4,res[1])
+
+        # Get video source width and height
+        # self.width,self.height=res
+
+        # Load model
+        self.device = select_device()
+        self.model = DetectMultiBackend(self.model_path, device=self.device, data=self.data_path)
+        self.stride, self.names, self.pt, = self.model.stride, self.model.names, self.model.pt
+        self.model.warmup(imgsz=(1, 3, *imgsz), half=False)
+        cudnn.benchmark = True
 
     def update(self):
-
         # Get a frame from the video source
         ret, frame = self.vid.get_frame()
         if self.ok:
             self.vid.out.write(cvtColor(frame,COLOR_RGB2BGR))
         if ret:
-            image = PIL.Image.fromarray(self.inferencer.inference(frame))
+            image = PIL.Image.fromarray(self.inference(frame))
 
             self.new_frame_time = time()
 
@@ -228,46 +275,11 @@ class InferenceView(tk.Frame):
 
             self.photo = PIL.ImageTk.PhotoImage(image = image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
-        self.frame.after(self.delay,self.update)
-
-    def changeCamera(self, source):
-        self.ok = False
-        destroyAllWindows()
-        self.video_source = source
-        self.vid.__del__()
-        self.vid = VideoCapture(source)
-        self.ok = True
-
-class Inferencer:
-    def __init__(self, video_path, model_path, data_path, imgsz = (864,1536)):
-        # TODO Inferencer: 
-        # Create logger algorithm
-        # Optimisasi Inferencer for more fpszzzzzzzz (if can) 
-        self.video_path = video_path
-        self.model_path = model_path
-        self.data_path  = data_path
-        self.imgsz = imgsz
-        self.conf_thres = 0.25
-        self.iou_thres = 0.45
-        self.max_det = 1000
-        self.line_thickness = 3
-        self.half = False
-        self.hide_conf = False
+        self.after(self.delay,self.update)
+        ret, frame = self.vid.get_frame()
         
-        # Open the video source
-        self.vid = VideoCapture(video_path)
-        if not self.vid.isOpened():
-            raise ValueError("Unable to open video source", video_path)
-
-        # Load model
-        self.device = select_device()
-        self.model = DetectMultiBackend(self.model_path, device=self.device, data=self.data_path)
-        self.stride, self.names, self.pt, = self.model.stride, self.model.names, self.model.pt
-        self.model.warmup(imgsz=(1, 3, *imgsz), half=False)
-        cudnn.benchmark = True
 
     # adapted from yolov5's detect.py, thanks yolov5
-    # pls optimize me
     def inference(self, frame:np.ndarray):
         model = self.model
         names = self.names
@@ -292,11 +304,6 @@ class Inferencer:
         det = pred[0]
         # Process predictions
         gn = tensor(frame.shape)[[1, 0, 1, 0]]
-        s=""
-        for c in det[:, -1].unique():
-            n = (det[:, -1] == c).sum()  # detections per class
-            s += f"{n} {names[int(c)]} "
-        print(s)
 
         annotator = Annotator(frame, line_width=self.line_thickness, example=str(names))
         if len(det):
@@ -307,11 +314,110 @@ class Inferencer:
                 xywh = (xyxy2xywh(tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                 line = (cls, *xywh, conf)
                 with open("asdlog" + '.txt', 'a') as f:
-                    out = f"{(str(line[0]).rstrip(), line[2])} " +"\n"
-                    f.write(out)
-                    # print(out)
+                    f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-            # Write results
+            # # Write results
+            for *xyxy, conf, cls in reversed(det):
+                c = int(cls)  # integer class
+                label = names[c] if self.hide_conf else f'{names[c]} {conf:.2f}'
+                annotator.box_label(xyxy, label, color=colors(c, True))
+
+        # Stream results
+        return annotator.result()
+
+class Inferencer:
+    def __init__(self, video_path, model_path, data_path, imgsz = (736,1280)):
+        self.video_path = video_path
+        self.model_path = model_path
+        self.data_path  = data_path
+        self.imgsz = imgsz
+        self.conf_thres = 0.25
+        self.iou_thres = 0.45
+        self.max_det = 1000
+        self.line_thickness = 3
+        self.half = False
+        self.hide_conf = False
+        
+        # Open the video source
+        self.vid = VideoCapture(video_path)
+        if not self.vid.isOpened():
+            raise ValueError("Unable to open video source", video_path)
+
+        # # Command Line Parser
+        # args=CommandLineParser().args
+
+        # # 1. Video Type
+        # VIDEO_TYPE = {
+        #     'avi': cv2.VideoWriter_fourcc(*'XVID'),
+        #     #'mp4': cv2.VideoWriter_fourcc(*'H264'),
+        #     'mp4': cv2.VideoWriter_fourcc(*'XVID'),
+        # }
+        # self.fourcc=VIDEO_TYPE['avi']
+
+        # # 2. Video Dimension
+        # STD_DIMENSIONS =  {
+        #     '480p': (640, 480),
+        #     '720p': (1280, 720),
+        #     '900p': (1600,900),
+        #     '1080p': (1920, 1080),
+        #     '4k': (3840, 2160),
+        # }
+        # res=STD_DIMENSIONS[args.res[0]]
+        # print(args.name,self.fourcc,res)
+        # self.out = cv2.VideoWriter(args.name[0]+'.'+args.type[0],self.fourcc,20,res)
+
+        # #set video sourec width and height
+        # self.vid.set(3,res[0])
+        # self.vid.set(4,res[1])
+
+        # Get video source width and height
+        # self.width,self.height=res
+
+        # Load model
+        self.device = select_device()
+        self.model = DetectMultiBackend(self.model_path, device=self.device, data=self.data_path)
+        self.stride, self.names, self.pt, = self.model.stride, self.model.names, self.model.pt
+        self.model.warmup(imgsz=(1, 3, *imgsz), half=False)
+        cudnn.benchmark = True
+
+    # adapted from yolov5's detect.py, thanks yolov5
+    def inference(self, frame:np.ndarray):
+        model = self.model
+        names = self.names
+
+        im = letterbox(frame, self.imgsz, stride=self.stride, auto=True)[0]
+        im = im.transpose((2, 0, 1))[::-1]
+        im = np.ascontiguousarray(im)
+
+        # what is this im and im0
+        im = from_numpy(im).to(self.device)
+        im = im.half() if self.half else im.float()  # uint8 to fp16/32
+        im /= 255  # 0 - 255 to 0.0 - 1.0
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+
+        # Inference
+        pred = model(im, augment=False, visualize=False)
+
+        # NMS
+        pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, max_det=self.max_det)
+
+        det = pred[0]
+        # Process predictions
+        gn = tensor(frame.shape)[[1, 0, 1, 0]]
+
+        annotator = Annotator(frame, line_width=self.line_thickness, example=str(names))
+        if len(det):
+            # Rescale boxes from img_size to im0 size
+            det[:, :4] = scale_coords(im.shape[2:], det[:, :4], frame.shape).round()
+
+            for *xyxy, conf, cls in reversed(det):
+                xywh = (xyxy2xywh(tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                line = (cls, *xywh, conf)
+                with open("asdlog" + '.txt', 'a') as f:
+                    f.write(('%g ' * len(line)).rstrip() % line + '\n')
+
+            # # Write results
             for *xyxy, conf, cls in reversed(det):
                 c = int(cls)  # integer class
                 label = names[c] if self.hide_conf else f'{names[c]} {conf:.2f}'

@@ -12,7 +12,7 @@ from utils.torch_utils import select_device
 from utils.augmentations import letterbox
 from sys import exit
 
-LARGEFONT = ("Verdana", 35)
+LARGEFONT =("Verdana", 35)
 
 VIDEO_PATH = 0
 
@@ -32,7 +32,6 @@ def returnCameraIndexes():
 
 class Menu(tk.Frame):
     def __init__(self, container):
-        # TODO Menu: Rapikan GUI,  Add text input for api send specification
         super().__init__(container)
         print("Menu initialized")
         self.container = container
@@ -42,24 +41,22 @@ class Menu(tk.Frame):
         self.vid = VideoCap()
         # self.frame = tk.Frame(container, width = self.vid.width, height = self.vid.height, bd=1)
         # self.frame.pack()
-
-        # Create a canvas that can fit the above video source size
         self.canvas = tk.Canvas(self.frame, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
+        # Create a canvas that can fit the above video source size
+        # Button that lets the user take a snapshot
 
-        # Video control buttons
         videoInputs = returnCameraIndexes()
-        # video input choice
         self.buttons = []
         for _, val in enumerate(videoInputs):
             self.buttons.append(tk.Button(self.frame, text=f"video({val})", command=lambda i=_:self.changeCamera(i)))
             self.buttons[_].pack( side = tk.LEFT )
+        #video control buttons
 
         # quit button
         self.btn_quit=tk.Button(self.frame, text='QUIT', command=exit)
         self.btn_quit.pack(side=tk.LEFT)
 
-        # Continue button
         self.btn_quit=tk.Button(self.frame, text='LANJUT', command=self.inference)
         self.btn_quit.pack(side=tk.LEFT)
         
@@ -104,6 +101,10 @@ class App(tk.Tk):
             self.tk.call("set_theme", "light")
         except:
             pass
+
+    def show_frame(self):
+        frame = Menu(self,0)
+        frame.tkraise()
 
     def switch_frame(self, frame_class):
         new_frame = frame_class(self)
@@ -173,7 +174,6 @@ class VideoCap :
 class InferenceView(tk.Frame):
     global VIDEO_PATH
     def __init__(self, container):
-        # also TODO InferenceView: rapikan GUI dan logger
         super().__init__(container)
         self.inferencer = Inferencer(0, "yolov5m.pt", "coco128.yaml")
         self.prev_frame_time = 0
@@ -183,7 +183,6 @@ class InferenceView(tk.Frame):
         self.ok=False
         self.video_source = VIDEO_PATH
         self.vid = VideoCap()
-        # Create a canvas that can fit the above video source size
         self.canvas = tk.Canvas(self.frame, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
 
@@ -240,9 +239,6 @@ class InferenceView(tk.Frame):
 
 class Inferencer:
     def __init__(self, video_path, model_path, data_path, imgsz = (864,1536)):
-        # TODO Inferencer: 
-        # Create logger algorithm
-        # Optimisasi Inferencer for more fpszzzzzzzz (if can) 
         self.video_path = video_path
         self.model_path = model_path
         self.data_path  = data_path
@@ -267,7 +263,6 @@ class Inferencer:
         cudnn.benchmark = True
 
     # adapted from yolov5's detect.py, thanks yolov5
-    # pls optimize me
     def inference(self, frame:np.ndarray):
         model = self.model
         names = self.names
@@ -311,7 +306,7 @@ class Inferencer:
                     f.write(out)
                     # print(out)
 
-            # Write results
+            # # Write results
             for *xyxy, conf, cls in reversed(det):
                 c = int(cls)  # integer class
                 label = names[c] if self.hide_conf else f'{names[c]} {conf:.2f}'
