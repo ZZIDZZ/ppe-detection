@@ -1,2 +1,2 @@
 # ppe-detection   
-current working script: tkcaminf.py
+current working script: tkcaminfmenu.py
