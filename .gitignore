@@ -12,3 +12,4 @@ dataset
 build
 *.pt
 *.rar
+app/*.pt

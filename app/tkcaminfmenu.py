@@ -306,7 +306,7 @@ class Inferencer:
             for *xyxy, conf, cls in reversed(det):
                 xywh = (xyxy2xywh(tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                 line = (cls, *xywh, conf)
-                with open("asdlog" + '.txt', 'a') as f:
+                with open("logs/asdlog" + '.txt', 'a') as f:
                     out = f"{(str(line[0]).rstrip(), line[2])} " +"\n"
                     f.write(out)
                     # print(out)
