@@ -266,7 +266,7 @@ class Inferencer:
         self.device = select_device()
         self.model = DetectMultiBackend(self.model_path, device=self.device, data=self.data_path)
         self.stride, self.names, self.pt, = self.model.stride, self.model.names, self.model.pt
-        self.model.warmup(imgsz=(1, 3, *imgsz), half=False)
+        self.model.warmup(imgsz=(1, 3, *imgsz))
         cudnn.benchmark = True
 
     # adapted from yolov5's detect.py, thanks yolov5
