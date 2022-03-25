@@ -11,6 +11,8 @@ from utils.plots import Annotator, colors
 from utils.torch_utils import select_device
 from utils.augmentations import letterbox
 from sys import exit
+import logger
+from importlib import reload
 
 LARGEFONT = ("Verdana", 35)
 
@@ -253,7 +255,8 @@ class Inferencer:
         self.line_thickness = 3
         self.half = False
         self.hide_conf = False
-        
+        self.detected, self.prev_detected = {},{}
+        self.time = round(time(), 2)
         # Open the video source
         self.vid = VideoCapture(video_path)
         if not self.vid.isOpened():
@@ -292,31 +295,37 @@ class Inferencer:
         det = pred[0]
         # Process predictions
         gn = tensor(frame.shape)[[1, 0, 1, 0]]
-        s=""
-        for c in det[:, -1].unique():
-            n = (det[:, -1] == c).sum()  # detections per class
-            s += f"{n} {names[int(c)]} "
-        print(s)
 
         annotator = Annotator(frame, line_width=self.line_thickness, example=str(names))
         if len(det):
             # Rescale boxes from img_size to im0 size
             det[:, :4] = scale_coords(im.shape[2:], det[:, :4], frame.shape).round()
 
-            for *xyxy, conf, cls in reversed(det):
-                xywh = (xyxy2xywh(tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                line = (cls, *xywh, conf)
-                with open("logs/asdlog" + '.txt', 'a') as f:
-                    out = f"{(str(line[0]).rstrip(), line[2])} " +"\n"
-                    f.write(out)
-                    # print(out)
+            # logger
+            reload(logger)
+            try:
+                if round(time(), 2) - self.time > 0.2:
+                    self.detected, self.prev_detected= logger.log(det,names, self.detected,self.prev_detected)
+                    self.time =round(time(), 2)
+            except Exception as e:
+                print(e)
+                pass
+
+            # for *xyxy, conf, cls in reversed(det):
+            #     xywh = (xyxy2xywh(tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+            #     line = (cls, *xywh, conf)
+            #     with open("logs/asdlog" + '.txt', 'a') as f:
+            #         out = f"{(str(line[0]).rstrip(), cls)} " +"\n"
+            #         f.write(out)
+            #         # print(out)
 
             # Write results
             for *xyxy, conf, cls in reversed(det):
                 c = int(cls)  # integer class
                 label = names[c] if self.hide_conf else f'{names[c]} {conf:.2f}'
                 annotator.box_label(xyxy, label, color=colors(c, True))
-
+        if self.time - round(time(), 2) > 10:
+            self.time = round(time(), 2)
         # Stream results
         return annotator.result()
 
