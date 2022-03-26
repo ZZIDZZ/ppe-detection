@@ -1,6 +1,10 @@
+from itertools import count
 from time import time
+import numpy as np
+
 prev_detected = {}
 now_detected = {}
+
 def log(det, names, detected, prev_detected):
     s=""
     for c in det[:, -1].unique():
@@ -20,3 +24,21 @@ def log(det, names, detected, prev_detected):
         f.write(s + "\n")
         print(detected, int(round(time())))
     return detected,now_detected
+
+
+
+def logv2(det, names, detected, prev_detected):
+    """
+    apa yang berbeda dari log?
+    logv2 melakukan group class tensor
+    
+    """
+    s = ""
+
+    obj_seen, count = np.unique(det[:, -1].cpu(), return_counts=True)
+
+    for obj, c in zip(obj_seen, count):
+        s += f"{c} {names[int(obj)]} "
+    print(s)
+
+    return detected,now_detected  
