@@ -6,6 +6,7 @@ prev_detected = {}
 now_detected = {}
 
 def log(det, names, detected, prev_detected):
+    #TODO: try sqlite, or json
     s=""
     for c in det[:, -1].unique():
         n = int((det[:, -1] == c).sum())  # detections per class
