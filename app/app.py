@@ -1,7 +1,7 @@
 import tkinter as tk
 from cv2 import VideoCapture,destroyAllWindows, cvtColor, CAP_DSHOW, COLOR_RGB2BGR, VideoWriter, VideoWriter_fourcc, imwrite
 import PIL.Image, PIL.ImageTk, PIL.ImageDraw
-from time import time
+from time import time, perf_counter
 import numpy as np
 from torch import tensor, from_numpy
 import torch.backends.cudnn as cudnn
@@ -178,8 +178,9 @@ class InferenceView(tk.Frame):
         # also TODO InferenceView: rapikan GUI dan logger
         super().__init__(container)
         self.inferencer = Inferencer(0, "yolov5m.pt", "coco128.yaml")
-        self.prev_frame_time = 0
-        self.new_frame_time = 0
+        self._time = perf_counter()
+        self._frame_count = 0
+        self._last_frame_count = 0
         self.frame = tk.Frame(master=container)
         self.frame.pack()
         self.ok=False
@@ -208,25 +209,16 @@ class InferenceView(tk.Frame):
         if ret:
             image = PIL.Image.fromarray(self.inferencer.inference(frame))
 
-            self.new_frame_time = time()
-
-            # Calculating the fps
-
-            # fps will be number of frame processed in given time frame
-            # since their will be most of time error of 0.001 second
-            # we will be subtracting it to get more accurate result
-            fps = 1/(self.new_frame_time-self.prev_frame_time)
-            self.prev_frame_time = self.new_frame_time
-
-            # converting the fps into integer
-            fps = int(fps)
-
-            # converting the fps to string so that we can display it on frame
-            # by using putText function
-            fps = str(fps)
+            
+            # increment and check to restart counter
+            self._frame_count += 1
+            if perf_counter() - self._time > 1:
+                self._last_frame_count = self._frame_count
+                self._frame_count = 0
+                self._time = perf_counter()
 
             # write test to PIL img
-            PIL.ImageDraw.Draw(image).text((0, 0), fps, fill =(0, 255, 0))
+            PIL.ImageDraw.Draw(image).text((0, 0), str(self._last_frame_count), fill =(0, 255, 0))
 
             self.photo = PIL.ImageTk.PhotoImage(image = image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
@@ -256,7 +248,7 @@ class Inferencer:
         self.half = False
         self.hide_conf = False
         self.detected, self.prev_detected = {},{}
-        self.time = round(time(), 2)
+        self.time = perf_counter()
         # Open the video source
         self.vid = VideoCapture(video_path)
         if not self.vid.isOpened():
@@ -304,9 +296,9 @@ class Inferencer:
             # logger
             reload(logger)
             try:
-                if round(time(), 2) - self.time > 0.2:
-                    self.detected, self.prev_detected= logger.log(det,names, self.detected,self.prev_detected)
-                    self.time =round(time(), 2)
+                if perf_counter() - self.time > 0.2:
+                    self.detected, self.prev_detected = logger.logv2(det, names, self.detected, self.prev_detected)
+                    self.time = perf_counter()
             except Exception as e:
                 print(e)
                 pass
@@ -324,8 +316,8 @@ class Inferencer:
                 c = int(cls)  # integer class
                 label = names[c] if self.hide_conf else f'{names[c]} {conf:.2f}'
                 annotator.box_label(xyxy, label, color=colors(c, True))
-        if self.time - round(time(), 2) > 10:
-            self.time = round(time(), 2)
+        # if self.time - round(time(), 2) > 10:
+        #     self.time = round(time(), 2)
         # Stream results
         return annotator.result()
 
