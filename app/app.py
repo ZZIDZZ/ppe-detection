@@ -1,7 +1,7 @@
 import tkinter as tk
 from cv2 import VideoCapture,destroyAllWindows, cvtColor, CAP_DSHOW, COLOR_RGB2BGR, VideoWriter, VideoWriter_fourcc, imwrite
 import PIL.Image, PIL.ImageTk, PIL.ImageDraw
-from time import time
+from time import time, perf_counter
 import numpy as np
 from torch import tensor, from_numpy
 import torch.backends.cudnn as cudnn
@@ -256,7 +256,7 @@ class Inferencer:
         self.half = False
         self.hide_conf = False
         self.detected, self.prev_detected = {},{}
-        self.time = round(time(), 2)
+        self.time = perf_counter()
         # Open the video source
         self.vid = VideoCapture(video_path)
         if not self.vid.isOpened():
@@ -304,9 +304,9 @@ class Inferencer:
             # logger
             reload(logger)
             try:
-                if round(time(), 2) - self.time > 0.2:
-                    self.detected, self.prev_detected= logger.log(det,names, self.detected,self.prev_detected)
-                    self.time =round(time(), 2)
+                if perf_counter() - self.time > 0.2:
+                    self.detected, self.prev_detected = logger.logv2(det, names, self.detected, self.prev_detected)
+                    self.time = perf_counter()
             except Exception as e:
                 print(e)
                 pass
@@ -324,8 +324,8 @@ class Inferencer:
                 c = int(cls)  # integer class
                 label = names[c] if self.hide_conf else f'{names[c]} {conf:.2f}'
                 annotator.box_label(xyxy, label, color=colors(c, True))
-        if self.time - round(time(), 2) > 10:
-            self.time = round(time(), 2)
+        # if self.time - round(time(), 2) > 10:
+        #     self.time = round(time(), 2)
         # Stream results
         return annotator.result()
 
